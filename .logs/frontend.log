@@ -3,7 +3,13 @@
 > vite
 
 
-  VITE v5.4.21  ready in 236 ms
+  VITE v5.4.21  ready in 263 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
+11:10:59 PM [vite] http proxy error: /api/prescriptions
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1631:16)
+11:10:59 PM [vite] http proxy error: /api/prescriptions
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1631:16)

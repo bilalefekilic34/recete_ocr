@@ -1,20 +1,12 @@
-INFO:     Started server process [91755]
+INFO:     Started server process [14260]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8100 (Press CTRL+C to quit)
-2026-11-07 11:51:24,504 INFO ocr-service: RapidOCR motoru yükleniyor (onnxruntime)...
-2026-11-07 11:51:24,714 INFO ocr-service: RapidOCR motoru hazır.
-2026-11-07 11:51:26,758 INFO ocr-service: OCR tamam: 46 satır, ort. güven 0.840, 2303 ms, mod=raw, provider=CPU
-INFO:     127.0.0.1:58036 - "POST /ocr HTTP/1.1" 200 OK
-2026-11-07 11:52:48,994 INFO ocr-service: OCR tamam: 22 satır, ort. güven 0.716, 497 ms, mod=raw, provider=CPU
-INFO:     127.0.0.1:48274 - "POST /ocr HTTP/1.1" 200 OK
-2026-11-07 11:56:47,128 INFO ocr-service: OCR tamam: 22 satır, ort. güven 0.713, 281 ms, mod=enhanced, provider=CPU
-INFO:     127.0.0.1:50920 - "POST /ocr HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43724 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43726 - "GET /health HTTP/1.1" 200 OK
-2026-11-07 12:30:43,203 INFO ocr-service: OCR tamam: 6 satır, ort. güven 0.834, 418 ms, mod=enhanced, provider=CPU
-INFO:     127.0.0.1:43742 - "POST /ocr HTTP/1.1" 200 OK
+2026-11-07 23:11:27,587 INFO ocr-service: RapidOCR motoru yükleniyor (onnxruntime)...
+2026-11-07 23:11:27,829 INFO ocr-service: RapidOCR motoru hazır.
+2026-11-07 23:11:28,186 INFO ocr-service: OCR tamam: 28 satır, ort. güven 0.736, 699 ms, mod=enhanced, provider=CPU
+INFO:     127.0.0.1:50718 - "POST /ocr HTTP/1.1" 200 OK
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [91755]
+INFO:     Finished server process [14260]

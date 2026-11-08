@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ReceteOcr.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2f71aa8d1e414a8e1a1467e3612a25b6d55bde25")]
 [assembly: System.Reflection.AssemblyProductAttribute("ReceteOcr.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ReceteOcr.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

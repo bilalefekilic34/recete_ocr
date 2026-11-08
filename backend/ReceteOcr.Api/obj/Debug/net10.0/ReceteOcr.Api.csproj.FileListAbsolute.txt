@@ -207,3 +207,4 @@
 /home/efe/recete_ocr/backend/ReceteOcr.Api/obj/Debug/net10.0/ReceteOcr.Api.pdb
 /home/efe/recete_ocr/backend/ReceteOcr.Api/obj/Debug/net10.0/ReceteOcr.Api.genruntimeconfig.cache
 /home/efe/recete_ocr/backend/ReceteOcr.Api/obj/Debug/net10.0/ref/ReceteOcr.Api.dll
+/home/efe/recete_ocr/backend/ReceteOcr.Api/obj/Debug/net10.0/ReceteOcr.Api.sourcelink.json
