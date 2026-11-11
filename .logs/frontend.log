@@ -3,13 +3,12 @@
 > vite
 
 
-  VITE v5.4.21  ready in 263 ms
+  VITE v5.4.21  ready in 257 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-11:10:59 PM [vite] http proxy error: /api/prescriptions
-Error: connect ECONNREFUSED 127.0.0.1:5000
-    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1631:16)
-11:10:59 PM [vite] http proxy error: /api/prescriptions
-Error: connect ECONNREFUSED 127.0.0.1:5000
-    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1631:16)
+8:55:36 AM [vite] hmr update /src/auth.tsx, /src/pages/AuditPage.tsx, /src/pages/DashboardPage.tsx, /src/pages/PrescriptionPage.tsx
+8:55:36 AM [vite] hmr invalidate /src/auth.tsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:55:36 AM [vite] page reload src/auth.tsx
+8:55:50 AM [vite] hmr update /src/pages/PrescriptionPage.tsx
+8:59:43 AM [vite] hmr update /src/pages/PrescriptionPage.tsx

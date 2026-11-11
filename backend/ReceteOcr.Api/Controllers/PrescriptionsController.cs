@@ -154,7 +154,12 @@ public class PrescriptionsController(
         p.RawOcrText = result.RawText;
         p.OcrConfidenceAvg = result.ConfidenceAvg;
         p.ProcessingTimeMs = result.ProcessingTimeMs;
-        p.OcrLinesJson = JsonSerializer.Serialize(result.Lines);
+        // camelCase ile saklanır; eski kayıtlar PascalCase olabilir —
+        // frontend parseLines her iki biçimi de tolere eder.
+        p.OcrLinesJson = JsonSerializer.Serialize(result.Lines, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        });
         await db.SaveChangesAsync(ct);
 
         await audit.LogAsync(UserId, Username, AuditActions.RunOcr, id,

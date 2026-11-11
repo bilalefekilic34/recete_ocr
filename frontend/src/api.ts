@@ -101,8 +101,34 @@ export const api = {
   prescriptionImageUrl: (id: number) => `/api/prescriptions/${id}/image`,
 
   /// JWT korumalı görseli blob URL olarak getirir (<img> başlık gönderemez).
-  fetchPrescriptionImage: async (id: number): Promise<string> => {
-    const blob = await request<Blob>(`/api/prescriptions/${id}/image`)
+  ///
+  /// Genel `request()` burada KULLANILMAZ: o yanıt gövdesini `response.json()`
+  /// ile ayrıştırır; görsel baytlarında SyntaxError fırlatır ve Network'te
+  /// 200 görünürken "görsel yüklenemedi" hatası üretir.
+  fetchPrescriptionImage: async (id: number, signal?: AbortSignal): Promise<string> => {
+    const headers = new Headers()
+    const token = getToken()
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+
+    const res = await fetch(`/api/prescriptions/${id}/image`, { headers, signal })
+
+    if (res.status === 401) {
+      clearAuth()
+      window.location.href = '/login'
+      throw new ApiError('Oturum süresi doldu.', 401)
+    }
+    if (!res.ok) {
+      throw new ApiError(`Görsel isteği başarısız (${res.status})`, res.status)
+    }
+
+    const blob = await res.blob()
+    // İçerik tipi doğrulaması: JSON hata sayfası vs. gerçek görsel ayrımı
+    if (!blob.type.startsWith('image/')) {
+      console.error(
+        `[api] /image yanıtı görsel değil, Content-Type: "${blob.type}" (${blob.size} bayt)`,
+      )
+      throw new ApiError(`Görsel beklenirken beklenmedik içerik tipi: ${blob.type}`, res.status)
+    }
     return URL.createObjectURL(blob)
   },
 

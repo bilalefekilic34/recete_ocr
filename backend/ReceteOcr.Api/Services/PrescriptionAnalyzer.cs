@@ -52,13 +52,14 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
 
     private const double LowConfidenceThreshold = 0.65;
 
-    // 1x1, 2x1, 2x2, 1x2x3 gibi kullanım kalıpları
+    // 1x1, 2x1, 2x2, 1x2x3 gibi kullanım kalıpları.
+    // \b yerine digit-lookaround: "tb2x1" gibi harfe yapışık kalıplar da yakalanır.
     private static readonly Regex DosagePattern =
-        new(@"\b\d{1,2}\s*[xX×]\s*\d{1,2}(?:\s*[xX×]\s*\d{1,2})?\b", RegexOptions.Compiled);
+        new(@"(?<!\d)\d{1,2}\s*[xX×]\s*\d{1,2}(?:\s*[xX×]\s*\d{1,2})?(?!\d)", RegexOptions.Compiled);
 
-    // 500 mg, 10 ml, 1 g ...
+    // 500 mg, 10 ml, 1 g ... ("Deks25mgtb" gibi yapışık biçimler dahil)
     private static readonly Regex DoseAmountPattern =
-        new(@"\b\d{1,4}(?:[.,]\d{1,2})?\s*(?:mg|ml|mcg|µg|gr?|ünite|iu)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        new(@"(?<!\d)\d{1,4}(?:[.,]\d{1,2})?\s*(?:mg|ml|mcg|µg|gr?|ünite|iu)(?!\d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // Standart dd/MM/yyyy ve dd.MM.yyyy
     private static readonly Regex DatePattern =
@@ -66,8 +67,15 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
 
     // Bozuk OCR tarihi: ilk ayırıcı rakama dönüşmüş — "2912/2014" ← "27/12/2014".
     // 4 hane + ayırıcı + (19|20)yy. Ayrı bir uyarıyla işaretlenir.
+    // Not: \b kullanılmaz — "Tarih2912/2014" gibi etikete yapışık durumlarda
+    // harf-rakam geçişi boundary üretmez; bunun yerine digit lookaround kullanılır.
     private static readonly Regex FuzzyYearDatePattern =
-        new(@"\b\d{4}[/.](19|20)\d{2}\b", RegexOptions.Compiled);
+        new(@"(?<!\d)\d{4}[/.](19|20)\d{2}(?!\d)", RegexOptions.Compiled);
+
+    // Bozuk OCR tarihi: ayırıcı tamamen kaybolmuş veya 1/l/| olarak okunmuş —
+    // "291212019" / "2912|2019" ← "29/12/2019". Aynı uyarıyla işaretlenir.
+    private static readonly Regex FuzzyMergedDatePattern =
+        new(@"(?<!\d)\d{4}[1l|]?(19|20)\d{2}(?!\d)", RegexOptions.Compiled);
 
     private static readonly Regex TcPattern = new(@"\b\d{11}\b", RegexOptions.Compiled);
 
@@ -94,6 +102,12 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
         "damla", "ampul", "flakon", "flk", "supozituvar", "krema", "krem", "merhem",
         "sprey", "pomad", "jel", "toz", "pastil",
     ];
+
+    // Birim anahtar kelimeleri tam kelime olarak aranır; "kapatilmasi" içindeki
+    // "kap" gibi alt dizi yanlış pozitifleri engellenir.
+    private static readonly Regex UnitWordPattern =
+        new(@"(?<![a-zA-ZçğışüöÇĞİŞÜÖ])(?:tb|tab|tablet|kapsül|kapsul|kap|şurup|surup|damla|ampul|flakon|flk|supozituvar|krema|krem|merhem|sprey|pomad|jel|toz|pastil)(?![a-zA-ZçğışüöÇĞİŞÜÖ])",
+            RegexOptions.Compiled);
 
     private static readonly string[] FrequencyHints =
     [
@@ -122,6 +136,18 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
     private static string NormalizeForAnalysis(string text)
     {
         var t = text;
+        // Yapışık birim (ilk uygulanır): mg benzeri birim sonraki kelimeyle
+        // boşluksuz birleşmiş (ör. "Sooyhethelu" ← "500mg ..."). Rakam/o/s
+        // karakterlerinden oluşan öbek + ny/oy/ry/mq/ooy + harf devamı →
+        // öbek içindeki o→0, s→5 çevirisiyle "50mg" gibi dozaj üret.
+        // Yalnızca ilaç satırı eşleştirmesinde uygulanır (ham metin korunur).
+        t = Regex.Replace(
+            t,
+            @"\b(?<num>[0-9oOsS]{2,4})(?:00|0o|o0)?(?<unit>ny|oy|ry|mq|ooy)(?=[a-zA-ZçğışüöÇĞİŞÜÖ])",
+            m => m.Groups["num"].Value
+                .Replace('o', '0').Replace('O', '0')
+                .Replace('s', '5').Replace('S', '5') + "mg",
+            RegexOptions.IgnoreCase);
         // Yaygın şekil karışmaları
         t = t.Replace("oo", "00", StringComparison.OrdinalIgnoreCase);
         // Sondaki "fu" büyük olasılıkla "flk" (flakon) adayı
@@ -133,6 +159,10 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
         t = Regex.Replace(t, @"\b(\d{1,4})\s*mq\b", "$1mg", RegexOptions.IgnoreCase);
         return t;
     }
+
+    /// <summary>Signa satırı mı: "S:" / "5:" ile başlayan kullanım talimatı.</summary>
+    private static readonly Regex SignaPrefixPattern =
+        new(@"^[Ss5]\s*[:.]", RegexOptions.Compiled);
 
     public PrescriptionAnalysis Analyze(IEnumerable<AnalyzerLine> lines, double overallConfidence)
     {
@@ -147,6 +177,7 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
         // Bozuk OCR tarihleri: yıl kalıbı tutan ama standart biçimde olmayanlar
         var fuzzyDates = FuzzyYearDatePattern.Matches(allText)
             .Select(m => m.Value)
+            .Concat(FuzzyMergedDatePattern.Matches(allText).Select(m => m.Value))
             .Distinct()
             .Where(d => !dateCandidates.Contains(d))
             .ToList();
@@ -178,6 +209,8 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
         }
 
         var drugLines = new List<DrugLineDto>();
+        // Signa (S:) birleştirme için son ilaç satırının OCR indeksi
+        var lastDrugLineIndex = -1;
         for (var i = drugStartIndex; i < lineList.Count; i++)
         {
             var line = lineList[i];
@@ -198,8 +231,32 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
             var doseAmounts = DoseAmountPattern.Matches(normalized).Select(m => m.Value).ToList();
             dosages.AddRange(doseAmounts);
 
-            var units = UnitKeywords.Where(k => normalizedLower.Contains(k)).ToList();
+            var units = UnitWordPattern.Matches(normalized).Select(m => m.Value.ToLowerInvariant()).Distinct().ToList();
             var freq = FrequencyHints.Where(normalizedLower.Contains).ToList();
+
+            // Signa (S: / 5:) satırı: kullanım talimatı. Bir üst satır geçerli
+            // bir ilaç satırıysa aynı kayıtta birleştir (İlaç Adı + Kullanım).
+            if (SignaPrefixPattern.IsMatch(text))
+            {
+                if (lastDrugLineIndex == i - 1 && drugLines.Count > 0)
+                {
+                    var prev = drugLines[^1];
+                    drugLines[^1] = new DrugLineDto(
+                        $"{prev.Text} | {text}",
+                        prev.Confidence,
+                        prev.Dosages.Union(dosages).ToList(),
+                        prev.Units.Union(units).ToList(),
+                        prev.FrequencyHints.Union(freq).ToList());
+                    lastDrugLineIndex = i;
+                }
+                else if (dosages.Count > 0 || freq.Count > 0)
+                {
+                    // Bağlanacak ilaç satırı yoksa talimatı tek başına da tut
+                    drugLines.Add(new DrugLineDto(text, Math.Round(line.Confidence, 4), dosages, units, freq));
+                    lastDrugLineIndex = i;
+                }
+                continue;
+            }
 
             // Kural: dozaj + birim + sıklık üçü birden boşsa bu satır tek
             // başına "Olası İlaç Satırı" olarak işaretlenmez.
@@ -207,6 +264,7 @@ public class HeuristicPrescriptionAnalyzer : IPrescriptionAnalyzer
                 continue;
 
             drugLines.Add(new DrugLineDto(text, Math.Round(line.Confidence, 4), dosages, units, freq));
+            lastDrugLineIndex = i;
         }
 
         // --------------------- Düşük güven satırları ----------------------

@@ -7,10 +7,28 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('tr-TR')
 }
 
+/// Kayıtlı OcrLinesJson'ı tolere eden ayrıştırıcı:
+/// yeni kayıtlar camelCase ("text"), eski kayıtlar PascalCase ("Text")
+/// olabilir; ayrıca kök dizinin gerçekten dizi olduğundan emin olunur.
 function parseLines(json: string | null): OcrLine[] {
   if (!json) return []
   try {
-    return JSON.parse(json) as OcrLine[]
+    const parsed: unknown = JSON.parse(json)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((item): OcrLine | null => {
+        const rec = item as Record<string, unknown>
+        const text = (rec.text ?? rec.Text) as string | undefined
+        const confidence = (rec.confidence ?? rec.Confidence) as number | undefined
+        const bbox = (rec.bbox ?? rec.Bbox) as OcrLine['bbox'] | undefined
+        if (typeof text !== 'string' || !Array.isArray(bbox)) return null
+        return {
+          text,
+          confidence: typeof confidence === 'number' ? confidence : 0,
+          bbox,
+        }
+      })
+      .filter((l): l is OcrLine => l !== null)
   } catch {
     return []
   }
@@ -316,31 +334,51 @@ function BBoxPreview({
   hovered: number | null
   onHover: (i: number | null) => void
 }) {
+  // natural boyutlar yalnızca <img onLoad> sonrası doldurulur; görsel
+  // yüklenmeden boyut hesabı yapılmaz (bbox oranı bozulmasın).
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imageError, setImageError] = useState<string | null>(null)
 
   useEffect(() => {
-    let revoke: string | null = null
+    // StrictMode'da effect iki kez çalışır: ilk çağrı AbortController ile
+    // iptal edilir, ikinci çağrının URL'i etkilenmez. Temizlik yalnızca
+    // kendi ürettiği objectUrl'i geri alır.
+    const controller = new AbortController()
+    let myUrl: string | null = null
     let cancelled = false
+
+    setImageError(null)
+    setImageUrl(null)
+    setNatural(null)
+
     api
-      .fetchPrescriptionImage(prescriptionId)
+      .fetchPrescriptionImage(prescriptionId, controller.signal)
       .then((url) => {
         if (cancelled) {
+          // Temizlik race'i: bu URL bu etkiye aitti ve bileşen/eski tur
+          // ölmüş durumda — hemen geri al.
           URL.revokeObjectURL(url)
           return
         }
-        revoke = url
+        myUrl = url
         setImageUrl(url)
       })
-      .catch(() => setImageUrl(null))
+      .catch((err) => {
+        if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return
+        setImageError(err instanceof Error ? err.message : 'Görsel yüklenemedi.')
+      })
+
     return () => {
       cancelled = true
-      if (revoke) URL.revokeObjectURL(revoke)
+      controller.abort()
+      if (myUrl) URL.revokeObjectURL(myUrl)
     }
   }, [prescriptionId])
 
   return (
     <div className="bbox-wrap">
+      {/* imageUrl hazır olana dek <img> DOM'a konmaz (boş src render yok) */}
       {imageUrl && (
         <img
           src={imageUrl}
@@ -352,7 +390,8 @@ function BBoxPreview({
           }}
         />
       )}
-      {!imageUrl && <p className="muted">Görsel yüklenemedi.</p>}
+      {imageError && <p className="muted">Görsel yüklenemedi: {imageError}</p>}
+      {!imageUrl && !imageError && <p className="muted">Görsel yükleniyor…</p>}
       {natural &&
         lines.map((l, i) => {
           const xs = l.bbox.map((pt) => pt[0])

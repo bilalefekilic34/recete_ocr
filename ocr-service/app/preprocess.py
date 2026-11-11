@@ -46,8 +46,10 @@ def apply_preprocessing(image: np.ndarray, mode: str) -> np.ndarray:
     # 1) Arka plan aydınlatma normalizasyonu: geniş çekirdekli medyan ile
     #    zemin tahmini, sonra bölme ile gölge/kağıt dokusunu temizle.
     #    (Agresif blur YOK — ince tükenmez kalem izleri korunur.)
+    #    Çekirdek 21 iken silik ince rakam grupları (100mg flk gibi)
+    #    yutulabiliyordu; 17 gölge temizliğini korurken detayı koruyor.
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    background = cv2.medianBlur(gray, 21)
+    background = cv2.medianBlur(gray, 17)
     normalized = cv2.divide(gray, background, scale=255)
 
     # 2) Hafif CLAHE: düşük clipLimit ince çizgileri boğmaz.
